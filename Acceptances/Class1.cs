@@ -1,13 +1,13 @@
 ﻿using System;
-//using System.Collections;
-//using System.Text;
+using System.Collections;
+using System.Text;
 using Microsoft.Xrm.Sdk;
-//using System.Web;
-//using System.Xml;
-//using System.Diagnostics;
+using System.Web;
+using System.Xml;
+using System.Diagnostics;
 using Microsoft.Xrm.Sdk.Query;
-//using Microsoft.Xrm.Sdk.Client;
-//using Microsoft.Crm.Sdk.Messages;
+using Microsoft.Xrm.Sdk.Client;
+using Microsoft.Crm.Sdk.Messages;
 namespace Termination
 {
     public class Delegates : IPlugin
@@ -19,21 +19,22 @@ namespace Termination
             _tracingService = (ITracingService)serviceProvider.GetService(typeof(ITracingService));
             
             IPluginExecutionContext context = (IPluginExecutionContext)serviceProvider.GetService(typeof(IPluginExecutionContext));
-
-            if (context.Depth > 1)
-                return;
             IOrganizationServiceFactory serviceFactory = (IOrganizationServiceFactory)serviceProvider.GetService(typeof(IOrganizationServiceFactory));
             IOrganizationService service = serviceFactory.CreateOrganizationService(context.UserId);
-            ITracingService trace = (ITracingService)serviceProvider.GetService(typeof(ITracingService));
 
             EntityReference targetEntity = null;
             string relationshipName = string.Empty;
             EntityReferenceCollection relatedEntities = null;
             EntityReference relatedEntity = null;
-            //Entity eventBooking = null;
-            //Guid eventEntID = Guid.Empty;
+            Entity building = null;
+            //Entity opportunity = null;
+            //Entity account = null;
+            //Guid opportunityOppID = Guid.Empty;
             //EntityReferenceCollection eqEntites = null;
             //Relationship relationshipEventContact = null;
+            Guid opportunityId = Guid.Empty;
+            Guid buildingId = Guid.Empty;
+            Guid accountId = Guid.Empty;
 
             try
             {
@@ -55,19 +56,22 @@ namespace Termination
                         return;
                     }
 
-                    _tracingService.Trace("Association");
+                    _tracingService.Trace("Association from opportunity to building");
 
                     // Get Entity EventBooking reference from Target Key from context
                     if (context.InputParameters.Contains("Target") && context.InputParameters["Target"] is EntityReference)
                     {
                         targetEntity = (EntityReference)context.InputParameters["Target"];
-                        _tracingService.Trace("Target Entity = " + targetEntity.Id.ToString());
-                        //eventBooking = service.Retrieve("new_eventbooking", targetEntity.Id, new ColumnSet("new_eventname"));
-                        //if (eventBooking.Attributes.Contains("new_eventname"))
+                        
+                        //opportunity = service.Retrieve("opportunity", targetEntity.Id, new ColumnSet("name"));
+                        //if (opportunity.Attributes.Contains("name"))
                         //{
-                        //    var eventEnt = (EntityReference)eventBooking["new_eventname"];
-                        //    eventEntID = eventEnt.Id;
+                            //var opportunityOpp = (EntityReference)opportunity["name"];
+                            //opportunityOppID = opportunityOpp.Id;
+                            opportunityId = targetEntity.Id;
                         //}
+
+                        _tracingService.Trace("Target Entity = {0}", opportunityId.ToString());
                     }
 
                     // Get Entity Contact reference from RelatedEntities Key from context
@@ -75,34 +79,45 @@ namespace Termination
                     {
                         relatedEntities = context.InputParameters["RelatedEntities"] as EntityReferenceCollection;
                         relatedEntity = relatedEntities[0];
-                        _tracingService.Trace("Related Entity = " + relatedEntity.Id.ToString());
+                        _tracingService.Trace("Related Entity = {0}", relatedEntity.Id.ToString());
                         //eqEntites = new EntityReferenceCollection();
-                        //eqEntites.Add(new EntityReference("contact", relatedEntities[0].Id));
+                        //eqEntites.Add(new EntityReference("new_building", relatedEntities[0].Id));
+                        building = service.Retrieve("new_building", relatedEntity.Id, new ColumnSet("new_providerid"));
+                        _tracingService.Trace("Retrieved {0}", building.Id);
+                        accountId = new Guid(building["new_providerid"].ToString());
+                        _tracingService.Trace("Provider = {0}", accountId.ToString());
                     }
 
-                    //if (eqEntites != null && eventEntID != null)
-                    //{
-                    //    relationshipEventContact = new Relationship("new_new_events_contacts");
-                    //    if (context.MessageName.ToLower() == "associate")
-                    //    {
-                    //        service.Associate("new_event", eventEntID, relationshipEventContact, eqEntites);
-                    //    }
-                    //    if (context.MessageName.ToLower() == "disassociate")
-                    //    {
-                    //        service.Disassociate("new_event", eventEntID, relationshipEventContact, eqEntites);
-                    //    }
-                    //    trace.Trace("Event-Delegate Associate & Dissassociate Plugin copleted Successfully");
-                    //}
-                    //else
-                    //{
-                    //    trace.Trace("Event-Delegate Associate & Dissassociate Plugin not completed Successfully");
-                    //}
+                    if (targetEntity.Id != null && relatedEntity.Id != null)
+                    {
+                        //    relationshipEventContact = new Relationship("new_new_events_contacts");
+                        //    if (context.MessageName.ToLower() == "associate")
+                        //    {
+                        //        service.Associate("new_event", eventEntID, relationshipEventContact, eqEntites);
+                        //    }
+                        //    if (context.MessageName.ToLower() == "disassociate")
+                        //    {
+                        //        service.Disassociate("new_event", eventEntID, relationshipEventContact, eqEntites);
+                        //    }
+                        Entity acceptance = new Entity("new_acceptance");
+
+                        acceptance.Attributes["new_opportunityid"] = new EntityReference("opportunity", opportunityId);
+                        acceptance.Attributes["new_providerid"] = new EntityReference("account", accountId);
+
+                        var acceptanceId = service.Create(acceptance);
+
+                        _tracingService.Trace("{0} {1} created, ", acceptance.LogicalName, acceptanceId);
+                    }
+                    else
+                    {
+                        _tracingService.Trace("Associate Plugin not completed successfully");
+                    }
                 }
                 #endregion
             }
             catch (Exception ex)
             {
-                trace.Trace(string.Format("Associate Plugin error: {0}", new[] { ex.ToString() }));
+                _tracingService.Trace(string.Format("Associate Plugin error: {0}", ex.Message ));
             }
         }
     }
