@@ -33,7 +33,7 @@ namespace Termination
             //EntityReferenceCollection eqEntites = null;
             //Relationship relationshipEventContact = null;
             Guid opportunityId = Guid.Empty;
-            Guid buildingId = Guid.Empty;
+            //Guid buildingId = Guid.Empty;
             Guid accountId = Guid.Empty;
 
             try
@@ -79,16 +79,17 @@ namespace Termination
                     {
                         relatedEntities = context.InputParameters["RelatedEntities"] as EntityReferenceCollection;
                         relatedEntity = relatedEntities[0];
-                        _tracingService.Trace("Related Entity = {0}", relatedEntity.Id.ToString());
+                        //_tracingService.Trace("Related Entity = {0}", relatedEntity.Id.ToString());
                         //eqEntites = new EntityReferenceCollection();
                         //eqEntites.Add(new EntityReference("new_building", relatedEntities[0].Id));
                         building = service.Retrieve("new_building", relatedEntity.Id, new ColumnSet("new_providerid"));
-                        _tracingService.Trace("Retrieved {0}", building.Id);
-                        accountId = new Guid(building["new_providerid"].ToString());
-                        _tracingService.Trace("Provider = {0}", accountId.ToString());
+                        _tracingService.Trace("Related Entity = {0}", building.Id.ToString());
+                        EntityReference accountEntityRef = (EntityReference)building["new_providerid"];
+                        accountId = accountEntityRef.Id;
+                        _tracingService.Trace("Provider = {0}", accountId);
                     }
 
-                    if (targetEntity.Id != null && relatedEntity.Id != null)
+                    if (opportunityId != null && accountId != null)
                     {
                         //    relationshipEventContact = new Relationship("new_new_events_contacts");
                         //    if (context.MessageName.ToLower() == "associate")
